@@ -8,7 +8,11 @@ Project for PSiW in ANSI C about communication between processes.
 <processName> is taken from .config file
 
 #Syntax
-```<processName> &&& <command> &&& <fifoPath>```
+```
+  <processName> &&& <command> &&& <fifoPath>
+    ```
 
 #Example command
-```usr1 &&& ls -l &&& ./queue1```
+```
+    usr1 &&& ls -l &&& ./queue1
+    ```
