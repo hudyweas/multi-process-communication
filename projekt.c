@@ -14,6 +14,7 @@
 #define MAX_MSG_SIZE    1024    //max normal message/input size
 #define MAX_RESULT_SIZE 4096    //max response message size from other process
 #define CLS_SCR         true    //true - clear screen after invalid input
+#define SLEEP_TIME      1       //sleep time in seconds in infinite loops
 
 // Author: https://stackoverflow.com/users/179910/jerry-coffin
 //         https://stackoverflow.com/questions/29788983/split-char-string-with-multi-character-delimiter-in-c
@@ -54,7 +55,7 @@ const char* findFifoPathFromName(char name[]){
     int findFlag = -1;
 
     while(fgets(row, MAX_MSG_SIZE, plik)){
-        if(strncmp(name, row, lengthOfName) == 0){
+        if(strncmp(name, row, lengthOfName) == 0 && row[lengthOfName] == ' '){
             findFlag = 1;
             break;
         }
@@ -126,11 +127,11 @@ int main(int argc, char* argv[]){
 
         char buffer[MAX_MSG_SIZE];
         while(1){
-            char buffer[MAX_MSG_SIZE];
+            char buffer[MAX_MSG_SIZE] = { 0 };
             int readInfo = 0;
             while(readInfo <= 0){
                 readInfo = read(fifo, command, MAX_MSG_SIZE);
-                sleep(1);
+                sleep(SLEEP_TIME);
             }
             read(fifo, sendResultFifoPath, MAX_MSG_SIZE);
 
@@ -140,12 +141,12 @@ int main(int argc, char* argv[]){
                 break;
             }
 
-            char result[MAX_RESULT_SIZE];
-            FILE *fp = popen(command, "r");
+
             printf("[INFO] Executing command...\n");
+            char result[MAX_RESULT_SIZE] = { 0 };
+            FILE *fp = popen(command, "r");
             while(fgets(buffer, sizeof(buffer), fp) != NULL){
                 strcat(result, buffer);
-                sleep(1);
             }
 
             printf("[INFO] Sending response\n");
@@ -207,6 +208,12 @@ int main(int argc, char* argv[]){
 
             printf("[INFO] Provided data: %s %s %s\n", receiverName, command, getResultFifoPath);
 
+            char *receiverFifoPath = strdup(findFifoPathFromName(receiverName));
+            if(strcmp("-1", receiverFifoPath) == 0){
+                printf("[ERROR] Wrong receiver id\n");
+                continue;
+            }
+
             //creating inner connection 
             printf("[INFO] Creating inner connection\n");
             errorStatus = mkfifo(getResultFifoPath, 0666);
@@ -224,15 +231,10 @@ int main(int argc, char* argv[]){
                 continue;
             }
 
-            char *receiverFifoPath = strdup(findFifoPathFromName(receiverName));
-            if(receiverFifoPath == "-1"){
-                printf("[ERROR] Wrong receiver id\n");
-                continue;
-            }
-
             int receiverFifo = open(receiverFifoPath, O_WRONLY);
             if(receiverFifo == -1){
                 perror("[ERROR] Error during opening FIFO queue file, aborting");
+                unlink(getResultFifoPath);
                 continue;
             }
             
@@ -240,10 +242,16 @@ int main(int argc, char* argv[]){
             errorStatus = write(receiverFifo, command, MAX_MSG_SIZE);
             if(errorStatus == -1){
                 perror("[ERROR] Error during sending data");
+                close(resultFifo);
+                unlink(getResultFifoPath);
+                continue;
             }
             errorStatus = write(receiverFifo, getResultFifoPath, MAX_MSG_SIZE);
             if(errorStatus == -1){
                 perror("[ERROR] Error during sending data");
+                close(resultFifo);
+                unlink(getResultFifoPath);
+                continue;
             }
 
             //receiving data
@@ -259,9 +267,10 @@ int main(int argc, char* argv[]){
             close(resultFifo);
             unlink(getResultFifoPath);
 
+            if(CLS_SCR){
+                system("clear");
+            }
             printf("%s\n", result);
-
-            sleep(1);
         }
     }
 }
