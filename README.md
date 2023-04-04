@@ -1,5 +1,5 @@
 # Multi-Process-Communication
-Project for PSiW in ANSI C about communication between processes.
+Project in ANSI C about communication between processes.
 
 ## How it works
 
